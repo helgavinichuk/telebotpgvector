@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Создание Telegram-бота с PostgreSQL и pgvector | Каталог фильмов</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            line-height: 1.5;
+            color: #111827;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* контейнер презентации */
+        .presentation-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            max-width: 1100px;
+            margin: 0 auto;
+            width: 100%;
+            padding: 2rem 1.5rem;
+        }
+
+        /* карточка слайда */
+        .slide {
+            background: #ffffff;
+            border-radius: 24px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
+            padding: 2rem 2rem 2rem 2rem;
+            border: 1px solid #eaeef2;
+            transition: all 0.2s ease;
+        }
+
+        /* заголовки */
+        h1 {
+            font-size: 2.2rem;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            margin-bottom: 1rem;
+            color: #0a2540;
+            border-left: 4px solid #2c7da0;
+            padding-left: 1rem;
+        }
+
+        h2 {
+            font-size: 1.6rem;
+            font-weight: 500;
+            margin: 1.2rem 0 0.8rem 0;
+            color: #1f3b4c;
+        }
+
+        h3 {
+            font-size: 1.3rem;
+            font-weight: 500;
+            margin: 0.8rem 0 0.5rem;
+            color: #2c7da0;
+        }
+
+        /* текст и блоки кода */
+        p, li {
+            font-size: 1rem;
+            color: #1e2f3a;
+            margin-bottom: 0.75rem;
+        }
+
+        ul, ol {
+            margin: 0.75rem 0 1rem 1.5rem;
+        }
+
+        code {
+            background: #f3f6f8;
+            padding: 0.2rem 0.4rem;
+            border-radius: 8px;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 0.85rem;
+            color: #c7254e;
+            border: 1px solid #e2e8f0;
+        }
+
+        pre {
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 16px;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            font-family: 'SF Mono', monospace;
+            border: 1px solid #e2edf2;
+            margin: 1rem 0;
+            box-shadow: inset 0 1px 2px #00000008;
+        }
+
+        pre code {
+            background: none;
+            color: #1f4e6e;
+            border: none;
+            padding: 0;
+            font-size: 0.85rem;
+        }
+
+        hr {
+            margin: 1rem 0;
+            border: none;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .note {
+            background: #fef9e3;
+            border-left: 4px solid #f5b042;
+            padding: 0.8rem 1.2rem;
+            border-radius: 16px;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+        }
+
+        /* навигация */
+        .nav-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 2rem;
+            gap: 1rem;
+        }
+
+        button {
+            background: #ffffff;
+            border: 1px solid #cbdde6;
+            padding: 0.65rem 1.6rem;
+            border-radius: 60px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #1f5e7e;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+            box-shadow: 0 1px 1px rgba(0,0,0,0.02);
+        }
+
+        button:hover {
+            background-color: #f1f9fe;
+            border-color: #2c7da0;
+            color: #0f4b65;
+        }
+
+        .page-indicator {
+            font-size: 0.9rem;
+            background: #f1f5f9;
+            padding: 0.4rem 1rem;
+            border-radius: 40px;
+            color: #2c3e4e;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 2rem;
+            font-size: 0.75rem;
+            color: #7f8c8d;
+            border-top: 1px solid #ecf3f8;
+            padding-top: 1.5rem;
+        }
+
+        @media (max-width: 680px) {
+            .presentation-container {
+                padding: 1rem;
+            }
+            .slide {
+                padding: 1.5rem;
+            }
+            h1 {
+                font-size: 1.7rem;
+            }
+            button {
+                padding: 0.5rem 1.2rem;
+            }
+        }
+
+        .badge {
+            display: inline-block;
+            background: #eef2ff;
+            color: #1e4b6e;
+            border-radius: 40px;
+            padding: 0.2rem 0.8rem;
+            font-size: 0.7rem;
+            font-weight: 500;
+            margin-bottom: 0.8rem;
+        }
+        /* фиксация кнопок навигации внизу */
+        .presentation-container {
+            min-height: 100vh;
+            justify-content: space-between;
+        }
+
+        .nav-controls {
+            margin-top: auto;
+            position: sticky;
+            bottom: 1rem;
+            background: #ffffff;
+            padding-top: 1rem;
+            padding-bottom: 0.5rem;
+            border-radius: 60px;
+            z-index: 10;
+        }
+
+        @media (max-width: 680px) {
+            .nav-controls {
+                position: static;
+                margin-top: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="presentation-container">
+    <div class="slide" id="slide-container">
+        <!-- содержимое будет вставляться динамически -->
+    </div>
+    <div class="nav-controls">
+        <button id="prevBtn" aria-label="Предыдущий слайд">← Предыдущий</button>
+        <span class="page-indicator" id="slideCounter">Слайд 1 / 20</span>
+        <button id="nextBtn" aria-label="Следующий слайд">Следующий →</button>
+    </div>
+   
+</div>
+
+<script>
+    // Массив слайдов — каждый объект содержит HTML-контент
+    const slides = [
+        { // 1
+            html: `<div style="text-align: left;">
+                        <h1>Создание каталога фильмов в Telegram с помощью Python, PostgreSQL и pgvector</h1>
+                        <hr>
+                        <p style="font-size:1.2rem; margin-top: 1.5rem;">Андрейчук Ольга Николаевна</p>
+                        <p>Интеграция телеграм-ботов, реляционных БД и векторного поиска для умного рекомендательного сервиса.</p>
+                    </div>`
+        },
+        { // 2
+            html: `<h1>🎯 Цель</h1>
+                    <p>Сформировать и закрепить системные знания о применении фреймворков Python, баз данных PostgreSQL и векторного расширения <code>pgvector</code> для реализации полного жизненного цикла чат-бота.</p>
+                    <p><strong>Что мы построим:</strong> телеграм-бот, который хранит фильмы, умеет рекомендовать случайный фильм и находить похожие по описанию с помощью <strong>векторного поиска (pgvector)</strong>.</p>
+                    <div class="note">💡 Результат: бот-каталог, который понимает смысл запроса, а не просто ключевые слова.</div>`
+        },
+        { // 3
+            html: `<h1>🧱 Что нам понадобится?</h1>
+                    <ul>
+                        <li><strong>Python 3.10+</strong> и библиотеки: <code>pytelegrambotapi</code>, <code>psycopg2-binary</code>, <code>sqlalchemy</code>, <code>pgvector</code>, <code>sentence-transformers</code></li>
+                        <li><strong>PostgreSQL</strong> (версия 11+, лучше 14+) — классическая база данных</li>
+                        <li><strong>pgvector</strong> — расширение для векторного поиска</li>
+                        <li><strong>Telegram Bot Token</strong> — через <code>@BotFather</code></li>
+                    </ul>
+                    <p>Все компоненты работают локально или на сервере. Векторные эмбеддинги позволяют искать фильмы "по смыслу".</p>`
+        },
+        { // 4
+            html: `<h1>📦 Установка библиотек</h1>
+                    <p>Открываем терминал и выполняем:</p>
+                    <pre><code>pip install pytelegrambotapi psycopg2-binary sqlalchemy pgvector sentence-transformers</code></pre>
+                    <ul>
+                        <li><code>pytelegrambotapi</code> — работа с Telegram API</li>
+                        <li><code>psycopg2</code> — драйвер PostgreSQL для Python</li>
+                        <li><code>pgvector</code> — работа с векторным типом данных</li>
+                        <li><code>sentence-transformers</code> — генерация эмбеддингов (понимание смысла)</li>
+                    </ul>`
+        },
+        { // 5
+            html: `<h1>🐘 Настройка PostgreSQL и pgvector</h1>
+                    <p>Запускаем <code>psql</code> или pgAdmin, создаём базу данных и включаем расширение:</p>
+                    <pre><code>CREATE DATABASE film_bot;
+\\c film_bot;
+CREATE EXTENSION vector;</code></pre>
+                    <p>Расширение <strong>vector</strong> добавляет новый тип данных — вектор фиксированной размерности, поддерживает операции L2, косинусное расстояние и скалярное произведение.</p>
+                    <div class="note">✅ Важно: расширение должно быть установлено в системе отдельно (подробнее на github.com/pgvector/pgvector).</div>`
+        },
+        { // 6
+            html: `<h1>📋 Структура таблицы фильмов</h1>
+                    <pre><code>CREATE TABLE movies (
+    id SERIAL PRIMARY KEY,
+    title TEXT UNIQUE,
+    description TEXT,
+    embedding vector(384)
+);</code></pre>
+                    <p><code>embedding vector(384)</code> — поле, хранящее смысловое представление описания. Размерность 384 выбрана для модели <strong>paraphrase-multilingual-MiniLM-L12-v2</strong> (отлично работает с русским языком).</p>
+                    <p>Векторы позволяют искать семантически близкие фильмы: например, запрос "расслабленное кино про море" найдёт нужный фильм.</p>`
+        },
+        { // 7
+            html: `<h1>🔐 Файл конфигурации (config.py)</h1>
+                    <p>Создаём отдельный файл для безопасности токенов и данных подключения:</p>
+                    <pre><code># config.py
+BOT_TOKEN = 'ВАШ_ТОКЕН_ОТ_BOTFATHER'
+
+DB_CONFIG = {
+    'host': 'localhost',
+    'user': 'postgres',
+    'password': 'your_password',
+    'dbname': 'film_bot'
+}</code></pre>
+                    <p>Никогда не публикуйте токен в открытом доступе! Добавьте config.py в <code>.gitignore</code>.</p>`
+        },
+        { // 8
+            html: `<h1>🔌 Подключение к БД из Python (bot.py)</h1>
+                    <pre><code>import telebot
+import psycopg2
+from config import BOT_TOKEN, DB_CONFIG
+
+bot = telebot.TeleBot(BOT_TOKEN)
+conn = psycopg2.connect(**DB_CONFIG)
+cursor = conn.cursor()</code></pre>
+                    <p>Теперь бот может выполнять SQL-запросы и работать с таблицами.</p>`
+        },
+        { // 9
+            html: `<h1>➕ Наполняем базу: тестовые фильмы</h1>
+                    <pre><code>INSERT INTO movies (title, description) VALUES 
+('Мстители: Финал', 'Супергерои объединяются, чтобы спасти вселенную от могущественного Таноса. Эпичный финал саги.'),
+('Джентльмены', 'Авантюрная комедия про криминального авторитета в Лондоне, который хочет продать бизнес.'),
+('1+1', 'Парализованный аристократ ищет сиделку, встречает парня из предместий — неожиданная дружба.');</code></pre>
+                    <p>Позже для этих фильмов мы сгенерируем векторы эмбеддингов, чтобы искать по смыслу.</p>`
+        },
+        { // 10
+            html: `<h1>🧠 Генерация эмбеддингов (модель sentence-transformers)</h1>
+                    <pre><code>from sentence_transformers import SentenceTransformer
+model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+
+def get_embedding(text):
+    return model.encode(text).tolist()</code></pre>
+                    <p>Функция превращает текст в вектор чисел (длины 384). Добавим команду, чтобы заполнить столбец <code>embedding</code> для всех фильмов.</p>
+                    <pre><code>cursor.execute("SELECT id, description FROM movies WHERE embedding IS NULL")
+for row in cursor.fetchall():
+    emb = get_embedding(row[1])
+    cursor.execute("UPDATE movies SET embedding = %s WHERE id = %s", (emb, row[0]))
+conn.commit()</code></pre>`
+        },
+        { // 11
+            html: `<h1>🤖 Команда /start и главная клавиатура</h1>
+                    <pre><code>@bot.message_handler(commands=['start'])
+def start_message(message):
+    keyboard = telebot.types.ReplyKeyboardMarkup(True)
+    keyboard.row('🍿 Случайный фильм', '🔍 Найди по описанию')
+    bot.send_message(message.chat.id, 
+        'Привет! Я бот-каталог фильмов. Ищу похожие по смыслу!',
+        reply_markup=keyboard)</code></pre>
+                    <p>Кнопки сделают интерфейс понятным.</p>`
+        },
+        { // 12
+            html: `<h1>🎲 Случайный фильм</h1>
+                    <pre><code>@bot.message_handler(func=lambda m: m.text == '🍿 Случайный фильм')
+def random_film(message):
+    cursor.execute("SELECT title, description FROM movies ORDER BY RANDOM() LIMIT 1;")
+    film = cursor.fetchone()
+    if film:
+        bot.send_message(message.chat.id, f"🎬 {film[0]}\\n📖 {film[1]}")
+    else:
+        bot.send_message(message.chat.id, "База фильмов пуста.")</code></pre>
+                    <p>Простой, но полезный функционал.</p>`
+        },
+        { // 13
+            html: `<h1>🔍 Семантический поиск с pgvector (ядро проекта)</h1>
+                    <p>Когда пользователь нажимает «Найди по описанию» — бот просит ввести текст, ищет ближайший вектор к запросу.</p>
+                    <pre><code>@bot.message_handler(func=lambda m: m.text == '🔍 Найди по описанию')
+def ask_query(message):
+    msg = bot.send_message(message.chat.id, 'Напишите, что хотите посмотреть (например "легкая комедия про друзей"):')
+    bot.register_next_step_handler(msg, handle_semantic_search)</code></pre>`
+        },
+        { // 14
+            html: `<h1>🚀 Функция векторного поиска</h1>
+                    <pre><code>def handle_semantic_search(message):
+    query_vec = get_embedding(message.text)
+    cursor.execute("""
+        SELECT title, description, 1 - (embedding <=> %s::vector) as similarity
+        FROM movies
+        ORDER BY embedding <=> %s::vector
+        LIMIT 1;
+    """, (query_vec, query_vec))
+    film = cursor.fetchone()
+    if film:
+        bot.send_message(message.chat.id, f"🎥 Подходящий фильм:\\n<b>{film[0]}</b>\\n{film[1]}", parse_mode='HTML')
+    else:
+        bot.send_message(message.chat.id, "Не нашлось похожих фильмов :(")</code></pre>
+                    <p>Оператор <code><=></code> — косинусное расстояние, чем ближе к 0, тем более похожий смысл.</p>`
+        },
+        { // 15
+            html: `<h1>⚡ Улучшаем качество: реальная модель на русский язык</h1>
+                    <p>Для качественного понимания запросов используем мультиязычную модель:</p>
+                    <pre><code>from sentence_transformers import SentenceTransformer
+model = SentenceTransformer('intfloat/multilingual-e5-small')  # или paraphrase-multilingual
+def get_embedding(text):
+    return model.encode("query: " + text).tolist()  # префикс для E5</code></pre>
+                    <p>Модель загрузится один раз и будет быстро вычислять векторы. Теперь бот понимает: <em>"кино про ограбление банка"</em> → найдет "Джентльмены" или другие подходящие фильмы.</p>`
+        },
+        { // 16
+            html: `<h1>▶️ Запуск бота (polling)</h1>
+                    <pre><code>if __name__ == '__main__':
+    print("🤖 Бот запущен и готов к работе")
+    bot.infinity_polling()</code></pre>
+                    <p>Функция <code>infinity_polling()</code> удерживает бота активным, постоянно проверяя обновления. Не забудьте сохранить файл и выполнить <code>python bot.py</code>.</p>
+                    <div class="note">При первом запуске модель sentence-transformers загрузится в кэш (может занять до минуты).</div>`
+        },
+        { // 17
+            html: `<h1>📸 Итоговый пример кода (сокращенный)</h1>
+                    <pre><code>import telebot, psycopg2
+from sentence_transformers import SentenceTransformer
+from config import BOT_TOKEN, DB_CONFIG
+
+bot = telebot.TeleBot(BOT_TOKEN)
+conn = psycopg2.connect(**DB_CONFIG)
+model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+cursor = conn.cursor()
+
+@bot.message_handler(commands=['start'])
+def start(m):
+    bot.send_message(m.chat.id, "Отправьте описание для поиска фильма")
+
+@bot.message_handler(content_types=['text'])
+def handle(m):
+    vec = model.encode(m.text).tolist()
+    cursor.execute("SELECT title FROM movies ORDER BY embedding <=> %s LIMIT 1;", (vec,))
+    res = cursor.fetchone()
+    bot.reply_to(m, res[0] if res else "Не найдено")
+
+bot.infinity_polling()</code></pre>`
+        },
+        { // 18
+            html: `<h1>🧠 Что такое RAG и как мы его применили?</h1>
+                    <p><strong>RAG (Retrieval-Augmented Generation)</strong> — поиск релевантной информации в базе знаний и использование её для ответа. У нас упрощённый RAG: по запросу находим похожий фильм и возвращаем название.</p>
+                    <ul>
+                        <li>Поиск по смыслу (pgvector) — ретривер</li>
+                        <li>База фильмов — корпус знаний</li>
+                        <li>Ответ бота — найденный фильм</li>
+                    </ul>
+                    <p>В реальных проектах можно добавить нейросеть, которая переформулирует ответ с учетом контекста.</p>`
+        },
+        { // 19
+            html: `<h1>⚠️ Типичные ошибки и их решения</h1>
+                    <ul>
+                        <li><strong>Ошибка "type vector does not exist"</strong> → выполнить <code>CREATE EXTENSION vector;</code> в вашей БД.</li>
+                        <li><strong>Нет фильмов после поиска</strong> → забыли заполнить колонку embedding для записей. Обновите векторы через функцию get_embedding.</li>
+                        <li><strong>Долгий ответ бота</strong> → sentence-transformers на CPU работает медленно. Для старта используйте небольшую модель или кэш.</li>
+                        <li><strong>Конфликт размерности</strong> → vector(384) должен соответствовать длине, которую возвращает модель.</li>
+                        <li><strong>Скачать и установить версию python 3.10 &nbsp&nbsp&nbsp&nbsp</strong><a href="https://www.python.org/downloads/" target="_blank">версия python 3.10</a></li>
+                        <li><strong>Установить torch  с помощью команды</strong>: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu</li>
+                    
+                    </ul>`
+        },
+        { // 20
+            html: `<h1>📚 Полезные ресурсы & благодарность</h1>
+                    <ul>
+                        <li><a href="https://github.com/pgvector/pgvector" target="_blank" style="color:#2c7da0;">pgvector GitHub</a> — официальная документация расширения</li>
+                        <li><a href="https://pypi.org/project/pyTelegramBotAPI/" target="_blank">pyTelegramBotAPI</a> — документация по ботам</li>
+                        <li><a href="https://www.sbert.net/" target="_blank">Sentence Transformers</a> — модели для семантического поиска</li>
+                        <li><a href="https://core.telegram.org/bots/api" target="_blank">Telegram Bot API</a></li>
+                       </ul>
+                    <hr>
+                    <h2 style="text-align:center; margin-top:1.5rem;">🎬 Спасибо за внимание!</h2>
+                    <p style="text-align:center; font-size:1.1rem;">Теперь вы знаете, как создать умного Telegram-бота с PostgreSQL и pgvector.<br> Успешных проектов!</p>`
+        }
+    ];
+
+    let currentSlide = 0;
+    const totalSlides = slides.length;
+
+    const container = document.getElementById('slide-container');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const counterSpan = document.getElementById('slideCounter');
+
+    function renderSlide() {
+        container.innerHTML = slides[currentSlide].html;
+        // маленький фикс — ссылки открывать в новой вкладке корректно, стили остаются
+        counterSpan.innerText = `Слайд ${currentSlide + 1} / ${totalSlides}`;
+        // скролл наверх при смене слайда
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function nextSlide() {
+        if (currentSlide < totalSlides - 1) {
+            currentSlide++;
+            renderSlide();
+        }
+    }
+
+    function prevSlide() {
+        if (currentSlide > 0) {
+            currentSlide--;
+            renderSlide();
+        }
+    }
+
+    prevBtn.addEventListener('click', prevSlide);
+    nextBtn.addEventListener('click', nextSlide);
+
+    // управление с клавиатуры (стрелки)
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft') {
+            prevSlide();
+            e.preventDefault();
+        } else if (e.key === 'ArrowRight') {
+            nextSlide();
+            e.preventDefault();
+        }
+    });
+
+    // отрисовка первого слайда
+    renderSlide();
+</script>
+</body>
+</html>
