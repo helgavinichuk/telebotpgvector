@@ -394,7 +394,7 @@ def start_message(message):
     bot.send_message(message.chat.id, 
         'Привет! Я бот-каталог фильмов. Ищу похожие по смыслу!',
         reply_markup=keyboard)</code></pre>
-                    <p>Кнопки сделают интерфейс понятным.</p>`
+                `
         },
         { // 12
             html: `<h1>Случайный фильм</h1>
@@ -406,7 +406,7 @@ def random_film(message):
         bot.send_message(message.chat.id, f"🎬 {film[0]}\\n📖 {film[1]}")
     else:
         bot.send_message(message.chat.id, "База фильмов пуста.")</code></pre>
-                    <p>Простой, но полезный функционал.</p>`
+                    `
         },
         { // 13
             html: `<h1>Семантический поиск с pgvector (ядро проекта)</h1>
