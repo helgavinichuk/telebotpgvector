@@ -250,7 +250,7 @@
                     <div class="note">💡 Результат: бот-каталог, который понимает смысл запроса, а не просто ключевые слова.</div>`
         },
         { // 3
-            html: `<h1>Понадобится:</h1>
+            html: `<h1>Понадобится</h1>
                     <ul>
                         <li><strong>Python 3.10+</strong> и библиотеки: <code>pytelegrambotapi</code>, <code>psycopg2-binary</code>, <code>sqlalchemy</code>, <code>pgvector</code>, <code>sentence-transformers</code></li>
                         <li><strong>PostgreSQL</strong> (версия 11+, лучше 14+) — классическая база данных</li>
@@ -271,7 +271,7 @@
                     </ul>`
         },
         { // 5
-            html: `<h1>🐘 Настройка PostgreSQL и pgvector</h1>
+            html: `<h1>Настройка PostgreSQL и pgvector</h1>
                     <p>Запускаем <code>psql</code> или pgAdmin, создаём базу данных и включаем расширение:</p>
                     <pre><code>CREATE DATABASE film_bot;
 \\c film_bot;
@@ -386,7 +386,7 @@ for row in cursor.fetchall():
 conn.commit()</code></pre>`
         },
         { // 11
-            html: `<h1>🤖 Команда /start и главная клавиатура</h1>
+            html: `<h1>Команда /start и главная клавиатура</h1>
                     <pre><code>@bot.message_handler(commands=['start'])
 def start_message(message):
     keyboard = telebot.types.ReplyKeyboardMarkup(True)
@@ -397,7 +397,7 @@ def start_message(message):
                     <p>Кнопки сделают интерфейс понятным.</p>`
         },
         { // 12
-            html: `<h1>🎲 Случайный фильм</h1>
+            html: `<h1>Случайный фильм</h1>
                     <pre><code>@bot.message_handler(func=lambda m: m.text == '🍿 Случайный фильм')
 def random_film(message):
     cursor.execute("SELECT title, description FROM movies ORDER BY RANDOM() LIMIT 1;")
@@ -434,7 +434,7 @@ def ask_query(message):
                     <p>Оператор <code><=></code> — косинусное расстояние, чем ближе к 0, тем более похожий смысл.</p>`
         },
         { // 15
-            html: `<h1>⚡ Улучшаем качество: реальная модель на русский язык</h1>
+            html: `<h1>Улучшаем качество: реальная модель на русский язык</h1>
                     <p>Для качественного понимания запросов используем мультиязычную модель:</p>
                     <pre><code>from sentence_transformers import SentenceTransformer
 model = SentenceTransformer('intfloat/multilingual-e5-small')  # или paraphrase-multilingual
