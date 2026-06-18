@@ -502,8 +502,120 @@ bot.infinity_polling()</code></pre>`
                     <pre><code>from telebot import types  # добавлен импорт для инлайн-кнопок
 
 # Словарь для хранения последнего показанного фильма для каждого пользователя
-last_shown_movie = {}</code></pre>
-                    <p>Модель загрузится один раз и будет быстро вычислять векторы. Теперь бот понимает: <em>"кино про ограбление банка"</em> → найдет "Джентльмены" или другие подходящие фильмы.</p>`
+last_shown_movie = {}</code></pre>`
+        },
+        { // 19
+            html: `<h1>Усложним задачу</h1>
+                    <p>Изменим обработчик случайных фильмов:</p>
+                    <pre><code>
+@bot.message_handler(func=lambda m: m.text == '🍿 Случайный фильм')
+def random_film(message):
+    user_id = message.from_user.id
+    cursor.execute("SELECT id, title, description FROM movies ORDER BY RANDOM() LIMIT 1;")
+    film = cursor.fetchone()
+    
+    if film:
+        last_shown_movie[user_id] = film[0]  # <-- ДОБАВЛЕНО
+        markup = types.InlineKeyboardMarkup()  # <-- ДОБАВЛЕНО
+        btn = types.InlineKeyboardButton("🔁 Похожие фильмы", callback_data=f"similar_{film[0]}")  # <-- ДОБАВЛЕНО
+        markup.add(btn)  # <-- ДОБАВЛЕНО
+        
+        bot.send_message(
+            message.chat.id,
+            f"🍿 Случайный фильм:\n<b>{film[1]}</b>\n\n📖 {film[2]}",
+            parse_mode='HTML',
+            reply_markup=markup  # <-- ДОБАВЛЕНО
+        )
+    else:
+        bot.send_message(message.chat.id, "База фильмов пуста.")</code></pre>`
+        },
+        { // 19
+            html: `<h1>Усложним задачу</h1>
+                    <p>Изменим обработчик события поиска по описанию:</p>
+                    <pre><code>
+def handle_semantic_search(message):
+    user_id = message.from_user.id  # <-- ДОБАВЛЕНО
+    query_vec = get_embedding(message.text)
+    cursor.execute("""
+        SELECT id, title, description, 1 - (embedding <=> %s::vector) as similarity
+        FROM movies
+        WHERE embedding IS NOT NULL
+        ORDER BY embedding <=> %s::vector
+        LIMIT 1;
+    """, (query_vec, query_vec))
+    film = cursor.fetchone()
+    if film:
+        last_shown_movie[user_id] = film[0]  # <-- ДОБАВЛЕНО
+        markup = types.InlineKeyboardMarkup()  # <-- ДОБАВЛЕНО
+        btn = types.InlineKeyboardButton("🔁 Похожие фильмы", callback_data=f"similar_{film[0]}")  # <-- ДОБАВЛЕНО
+        markup.add(btn)  # <-- ДОБАВЛЕНО
+        
+        bot.send_message(
+            message.chat.id,
+            f"🎥 Подходящий фильм:\n<b>{film[1]}</b>\n\n📖 {film[2]}",
+            parse_mode='HTML',
+            reply_markup=markup  # <-- ДОБАВЛЕНО
+        )
+    else:
+        bot.send_message(message.chat.id, "Не нашлось похожих фильмов :(")</code></pre>`
+        },
+        { // 19
+            html: `<h1>Усложним задачу</h1>
+                    <p>Добавим обработчик события похожих фильмов:</p>
+                    <pre><code>@bot.callback_query_handler(func=lambda call: call.data.startswith('similar_'))
+def show_similar_films(call):
+    movie_id = int(call.data.split('_')[1])
+    user_id = call.from_user.id
+    
+    cursor.execute("SELECT title, embedding FROM movies WHERE id = %s;", (movie_id,))
+    current_movie = cursor.fetchone()
+    
+    if not current_movie or current_movie[1] is None:
+        bot.answer_callback_query(call.id, "У этого фильма нет эмбеддинга для поиска.")
+        return
+    
+    current_title = current_movie[0]
+    embedding = current_movie[1]
+    
+    cursor.execute("""
+        SELECT id, title, description, 1 - (embedding <=> %s::vector) as similarity
+        FROM movies
+        WHERE id != %s AND embedding IS NOT NULL
+        ORDER BY embedding <=> %s::vector
+        LIMIT 5;
+    """, (embedding, movie_id, embedding))
+    
+    similar = cursor.fetchall()
+    
+    if not similar:
+        bot.answer_callback_query(call.id, "Не найдено похожих фильмов.")
+        return
+    
+    response = f"🎬 <b>Похожее на «{current_title}»</b>\n\n"
+    for i, film in enumerate(similar, 1):
+        sim_percent = int(film[3] * 100)
+        response += f"{i}. <b>{film[1]}</b> (совпадение {sim_percent}%)\n📖 {film[2][:120]}...\n\n"
+    
+    markup = types.InlineKeyboardMarkup()
+    markup.add(types.InlineKeyboardButton("❌ Закрыть", callback_data="close_similar"))
+    
+    bot.edit_message_text(
+        response,
+        chat_id=call.message.chat.id,
+        message_id=call.message.message_id,
+        parse_mode='HTML',
+        reply_markup=markup
+    )
+    
+    if similar:
+        last_shown_movie[user_id] = similar[0][0]
+    
+    bot.answer_callback_query(call.id)
+</code></pre>`
+        },
+        { // 19
+            html: `<h1>⚠️ Подумай</h1>
+                    <p>А теперь подумай, что нужно изменить, чтобы пропала кнопка "Закрыть"</p>`
         },
         { // 20
             html: `<h1>📚 Полезные ресурсы & благодарность</h1>
