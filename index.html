@@ -617,6 +617,205 @@ def show_similar_films(call):
             html: `<h1>⚠️ Подумай</h1>
                     <p>А теперь подумай, что нужно изменить, чтобы пропала кнопка "Закрыть"</p>`
         },
+        { // 18
+            html: `<h1>Что гибридный поиск?</h1>
+                    <p><strong>Гибридный поиск</strong> — это метод, который объединяет поиск по смыслу (семантический/векторный) и поиск по точным атрибутам (фильтрацию по ключевым словам, датам, категориям, цене и т.д.) в одном запросе.</p>
+                   
+                    <p>Векторный поиск с фильтрами, комбинированные SQL-запросы.</p>`
+        },
+        { // 19
+            html: `<h1>Усложним задачу. Добавим гибридный поиск</h1>
+                    <p>Обновление таблицы с фильмами: добавим новый атрибут - год выхода на экран  </p>
+                    <pre><code>ALTER TABLE movies ADD COLUMN release_year INTEGER;</code></pre>`
+        },
+        { // 19
+            html: `<h1>Обновление данных</h1>
+                    <p>Обновляем существующие фильмы (примерные годы)</p>
+                    <pre><code>UPDATE movies SET release_year = 2019 WHERE title = 'Мстители: Финал';
+UPDATE movies SET release_year = 2019 WHERE title = 'Джентльмены';
+UPDATE movies SET release_year = 2011 WHERE title = '1+1';
+UPDATE movies SET release_year = 2016 WHERE title = 'Кот по имени Боб';
+UPDATE movies SET release_year = 2009 WHERE title = 'Хатико: Самый верный друг';
+UPDATE movies SET release_year = 2022 WHERE title = 'Кошачья жизнь';
+UPDATE movies SET release_year = 1943 WHERE title = 'Ласси';
+UPDATE movies SET release_year = 1970 WHERE title = 'Коты-аристократы';
+UPDATE movies SET release_year = 1993 WHERE title = 'Дорога домой';
+UPDATE movies SET release_year = 2008 WHERE title = 'Марли и я';
+UPDATE movies SET release_year = 2016 WHERE title = 'Тайная жизнь домашних животных';
+UPDATE movies SET release_year = 1994 WHERE title = 'Король Лев';
+UPDATE movies SET release_year = 1992 WHERE title = 'Бетховен';
+UPDATE movies SET release_year = 2011 WHERE title = 'Кот в сапогах';
+UPDATE movies SET release_year = 2023 WHERE title = 'Шаг вперёд с собакой';
+UPDATE movies SET release_year = 1982 WHERE title = 'Белый Бим Чёрное ухо';
+UPDATE movies SET release_year = 2016 WHERE title = 'Пёс по имени Мани';
+UPDATE movies SET release_year = 2016 WHERE title = 'Девять жизней';
+UPDATE movies SET release_year = 2017 WHERE title = 'Собачья жизнь';
+UPDATE movies SET release_year = 2021 WHERE title = 'Кот и мышь';
+UPDATE movies SET release_year = 2022 WHERE title = 'Чужой среди своих';
+UPDATE movies SET release_year = 2021 WHERE title = 'Пушистые спасатели';
+UPDATE movies SET release_year = 2020 WHERE title = 'Шерлок Кот';
+UPDATE movies SET release_year = 2018 WHERE title = 'Рыжий пёс';
+UPDATE movies SET release_year = 2020 WHERE title = 'Васька, Барсик и компания';
+UPDATE movies SET release_year = 1988 WHERE title = 'Собачье сердце';
+UPDATE movies SET release_year = 2021 WHERE title = 'Кошачий король';
+UPDATE movies SET release_year = 2023 WHERE title = 'Кис-кис и мяу';
+UPDATE movies SET release_year = 2022 WHERE title = 'Пёс и его тень';
+UPDATE movies SET release_year = 2009 WHERE title = 'Индиана Джонс: В поисках утраченного ковчега';
+UPDATE movies SET release_year = 2003 WHERE title = 'Пираты Карибского моря: Проклятие Чёрной жемчужины';
+UPDATE movies SET release_year = 2017 WHERE title = 'Джуманджи: Зов джунглей';
+UPDATE movies SET release_year = 2001 WHERE title = 'Властелин колец: Братство кольца';
+UPDATE movies SET release_year = 2001 WHERE title = 'Гарри Поттер и философский камень';
+UPDATE movies SET release_year = 1999 WHERE title = 'Мумия';
+UPDATE movies SET release_year = 1992 WHERE title = 'Аладдин';
+UPDATE movies SET release_year = 2014 WHERE title = 'Стражи Галактики';
+UPDATE movies SET release_year = 2005 WHERE title = 'Мадагаскар';
+UPDATE movies SET release_year = 2010 WHERE title = 'Как приручить дракона';
+UPDATE movies SET release_year = 2016 WHERE title = 'Моана';</code></pre>`
+        },
+        { // 19
+            html: `<h1>Парсинга запроса</h1>
+                    <p>Добавим функцию, которая из текста пользователя извлекает информацию о годе или периоде: </p>
+                    <pre><code>import re
+# словарь для хранения последнего показанного фильма для каждого пользователя
+last_shown_movie = {}
+
+def get_embedding(text):
+    return model.encode(text).tolist()                    
+
+def parse_year_from_query(text):
+    """
+    Извлекает год или период из запроса.
+    Возвращает: (min_year, max_year, cleaned_text)
+    """
+    text_lower = text.lower()
+    min_year = None
+    max_year = None
+    cleaned_text = text
+    
+    # Ищем явное упоминание года (например, "1994", "2000-е", "90-е")
+    
+    # 1. Конкретный год (4 цифры)
+    year_match = re.search(r'\b(19[0-9]{2}|20[0-9]{2})\b', text)
+    if year_match:
+        year = int(year_match.group())
+        min_year = year
+        max_year = year
+        cleaned_text = re.sub(r'\b(19[0-9]{2}|20[0-9]{2})\b', '', text).strip()
+        return min_year, max_year, cleaned_text
+    
+    # 2. Десятилетие (например, "90-е", "80-е", "2000-е")
+    decade_match = re.search(r'(19[0-9]{2})[-\s]?[е|ы]', text_lower)
+    if decade_match:
+        decade = int(decade_match.group(1))
+        min_year = decade
+        max_year = decade + 9
+        cleaned_text = re.sub(r'(19[0-9]{2})[-\s]?[е|ы]', '', text).strip()
+        return min_year, max_year, cleaned_text
+    
+    # 3. Слова-маркеры
+    if 'современ' in text_lower or 'новый' in text_lower:
+        min_year = 2015
+        cleaned_text = re.sub(r'(современ|новый)', '', text).strip()
+        return min_year, None, cleaned_text
+    
+    if 'старый' in text_lower or 'классик' in text_lower:
+        max_year = 1990
+        cleaned_text = re.sub(r'(старый|классик)', '', text).strip()
+        return None, max_year, cleaned_text
+    
+    if 'древн' in text_lower or 'очень старый' in text_lower:
+        max_year = 1970
+        cleaned_text = re.sub(r'(древн|очень старый)', '', text).strip()
+        return None, max_year, cleaned_text
+    
+    # 4. Диапазоны (например, "с 1990 по 2000")
+    range_match = re.search(r'(с|от)\s*(19[0-9]{2}|20[0-9]{2})\s*(до|по)\s*(19[0-9]{2}|20[0-9]{2})', text_lower)
+    if range_match:
+        min_year = int(range_match.group(2))
+        max_year = int(range_match.group(4))
+        cleaned_text = re.sub(r'(с|от)\s*(19[0-9]{2}|20[0-9]{2})\s*(до|по)\s*(19[0-9]{2}|20[0-9]{2})', '', text).strip()
+        return min_year, max_year, cleaned_text
+    
+    return None, None, cleaned_text</code></pre>`
+        },
+        { // 19
+            html: `<h1>Изменим обновленный старт</h1>
+                    <pre><code>@bot.message_handler(commands=['start'])
+def start_message(message):
+    keyboard = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
+    keyboard.row('🍿 Случайный фильм', '🔍 Найди по описанию')
+    keyboard.row('🎯 Гибридный поиск')  # НОВОЕ: добавлена кнопка гибридного поиска
+    bot.send_message(
+        message.chat.id,
+        '👋 Привет! Я бот-каталог фильмов.\n\n'  # ИЗМЕНЕНО: обновлено приветствие
+        '🔹 «Случайный фильм» — покажу случайную картину.\n'
+        '🔹 «Найди по описанию» — найду фильм по смыслу.\n'
+        '🔹 «Гибридный поиск» — найду по смыслу + году выхода.\n\n'  # НОВОЕ
+        'Примеры для гибридного поиска:\n'
+        '"комедия 90-х", "современный блокбастер", "фильм 1994"',
+        reply_markup=keyboard
+    )</code></pre>`
+        },
+        { // 19
+            html: `<h1>Изменим функцию случайный фильм</h1>
+                    <p>Доработка функции </p>
+                    <pre><code># ---------- ИЗМЕНЕНО: СЛУЧАЙНЫЙ ФИЛЬМ С КНОПКОЙ ----------
+@bot.message_handler(func=lambda m: m.text == '🍿 Случайный фильм')
+def random_film(message):
+    user_id = message.from_user.id  # НОВОЕ: получаем ID пользователя
+    cursor.execute("SELECT id, title, description FROM movies ORDER BY RANDOM() LIMIT 1;")  # ИЗМЕНЕНО: добавлен id
+    film = cursor.fetchone()
+    
+    if film:
+        last_shown_movie[user_id] = film[0]  # НОВОЕ: запоминаем фильм для этого пользователя
+        markup = types.InlineKeyboardMarkup()  # НОВОЕ: создаём инлайн-кнопку
+        markup.add(types.InlineKeyboardButton("🔁 Похожие фильмы", callback_data=f"similar_{film[0]}"))  # НОВОЕ
+        bot.send_message(
+            message.chat.id,
+            f"🍿 Случайный фильм:\n<b>{film[1]}</b>\n\n📖 {film[2]}",  # ИЗМЕНЕНО: используется film[1] и film[2]
+            parse_mode='HTML',  # ИЗМЕНЕНО: добавлен HTML-формат для жирного текста
+            reply_markup=markup  # НОВОЕ: добавляем кнопку под сообщением
+        )
+    else:
+        bot.send_message(message.chat.id, "База фильмов пуста.")
+</code></pre>`
+        },
+        { // 19
+            html: `<h1>Изменим функцию поиска по описанию</h1>
+                    <pre><code>@bot.message_handler(func=lambda m: m.text == '🔍 Найди по описанию')
+def ask_query(message):
+    msg = bot.send_message(message.chat.id, 'Напишите, что хотите посмотреть (например "легкая комедия про друзей"):')
+    bot.register_next_step_handler(msg, handle_semantic_search)
+
+def handle_semantic_search(message):
+    user_id = message.from_user.id  # НОВОЕ: получаем ID пользователя
+    query_vec = get_embedding(message.text)
+    
+    cursor.execute("""
+        SELECT id, title, description, release_year,   -- ИЗМЕНЕНО: добавлены id и release_year
+               1 - (embedding <=> %s::vector) as similarity
+        FROM movies
+        WHERE embedding IS NOT NULL   -- НОВОЕ: исключаем фильмы без эмбеддинга
+        ORDER BY embedding <=> %s::vector
+        LIMIT 1;
+    """, (query_vec, query_vec))
+    
+    film = cursor.fetchone()
+    if film:
+        last_shown_movie[user_id] = film[0]  # НОВОЕ: запоминаем фильм
+        markup = types.InlineKeyboardMarkup()  # НОВОЕ: создаём кнопку
+        markup.add(types.InlineKeyboardButton("🔁 Похожие фильмы", callback_data=f"similar_{film[0]}"))  # НОВОЕ
+        
+        year_text = f" ({film[3]})" if film[3] else ""  # НОВОЕ: добавляем год, если есть
+        bot.send_message(
+            message.chat.id,
+            f"🎥 Подходящий фильм:\n<b>{film[1]}</b>{year_text}\n\n📖 {film[2]}",  # ИЗМЕНЕНО: добавлен год
+            parse_mode='HTML',  # ИЗМЕНЕНО: добавлен HTML-формат
+            reply_markup=markup  # НОВОЕ: добавляем кнопку под сообщением
+        )
+    else:
+        bot.send_message(message.chat.id, "Не нашлось похожих фильмов :(")</code></pre>`
+        },
         { // 20
             html: `<h1>📚 Полезные ресурсы & благодарность</h1>
                     <ul>
