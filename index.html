@@ -816,6 +816,75 @@ def handle_semantic_search(message):
     else:
         bot.send_message(message.chat.id, "Не нашлось похожих фильмов :(")</code></pre>`
         },
+        { // 19
+            html: `<h1>Добавление функции гибридного поиска</h1>
+                    <pre><code>@bot.message_handler(func=lambda m: m.text == '🎯 Гибридный поиск')
+def ask_hybrid_query(message):
+    msg = bot.send_message(
+        message.chat.id, 
+        'Напишите, что хотите посмотреть, и укажите год или период.\n'
+        'Примеры:\n'
+        '• "комедия 90-х"\n'
+        '• "современный блокбастер"\n'
+        '• "фильм 1994"\n'
+        '• "драма с 1990 по 2000"'
+    )
+    bot.register_next_step_handler(msg, handle_hybrid_search)
+
+def handle_hybrid_search(message):
+    user_id = message.from_user.id
+    original_text = message.text
+    
+    # Парсим год из запроса
+    min_year, max_year, cleaned_text = parse_year_from_query(original_text)
+    
+    if not cleaned_text.strip():
+        cleaned_text = original_text
+    
+    query_vec = get_embedding(cleaned_text)
+    
+    # Формируем SQL-запрос с учётом фильтра по году
+    sql = """
+        SELECT id, title, description, release_year, 
+               1 - (embedding <=> %s::vector) as similarity
+        FROM movies
+        WHERE embedding IS NOT NULL
+    """
+    params = [query_vec]
+    
+    # Добавляем фильтры по году, если они были извлечены из запроса
+    if min_year is not None and max_year is not None:
+        sql += " AND release_year BETWEEN %s AND %s"
+        params.append(min_year)
+        params.append(max_year)
+    elif min_year is not None:
+        sql += " AND release_year >= %s"
+        params.append(min_year)
+    elif max_year is not None:
+        sql += " AND release_year <= %s"
+        params.append(max_year)
+    
+    sql += " ORDER BY embedding <=> %s::vector LIMIT 1;"
+    params.append(query_vec)
+    
+    cursor.execute(sql, tuple(params))
+    film = cursor.fetchone()
+    
+    if film:
+        last_shown_movie[user_id] = film[0]
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("🔁 Похожие фильмы", callback_data=f"similar_{film[0]}"))
+        
+        year_text = f" ({film[3]})" if film[3] else ""
+        bot.send_message(
+            message.chat.id,
+            f"🎥 Нашёл по вашему запросу:\n<b>{film[1]}</b>{year_text}\n\n📖 {film[2]}",
+            parse_mode='HTML',
+            reply_markup=markup
+        )
+    else:
+        bot.send_message(message.chat.id, "Не нашлось подходящих фильмов :(")</code></pre>`
+        },
         { // 20
             html: `<h1>📚 Полезные ресурсы & благодарность</h1>
                     <ul>
